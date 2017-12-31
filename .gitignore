@@ -1,0 +1,6 @@
+*.pyc
+.idea/
+.virtualenv/
+db.json
+*.hashes.ntlm
+*.pot
