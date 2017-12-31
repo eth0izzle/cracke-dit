@@ -3,7 +3,7 @@
 
 Ensuring your users have strong passwords throughout the organisation is still your best line of defence against common attacks. Many organisations over estimate just how secure their users' passwords are. "London123", "Winter2017", "Passw0rd" - all complex passwords, according to the default Group Policy rules.
 
-By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures. See [General Tips].
+By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures. See [General Tips](#general-tips).
 
 ## Installation
 
@@ -12,7 +12,7 @@ Python 2.7+ and pip are required. Then just:
 1. `git clone https://github.com/eth0izzle/cracke-dit.git`
 2. *(optional)* Create a virtualenv with `pip install virtualenv && virtualenv .virtualenv && source .virtualenv/bin/activate`
 2. `pip install -r requirements.txt`
-3. `python cracked-dit.py --help` (and see [Usage])
+3. `python cracked-dit.py --help` (and see [Usage](#usage))
 
 ## Usage
 ### 1. Extracting the database
