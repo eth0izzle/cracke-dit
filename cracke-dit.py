@@ -25,8 +25,11 @@ if __name__ == "__main__":
     group = parser.add_argument_group("1. Cracking", "cracke-dit can take your raw ntds.dit and SYSTEM hive "
                                                               "and turn them in to a user:hash file for cracking "
                                                               "within your favourite password cracker")
-    group.add_argument("--system", action="store", help="SYSTEM hive to parse")
-    group.add_argument("--ntds", action="store", help="ntds.dit file to parse")
+    group.add_argument("--system", action="store", help="(local) SYSTEM hive to parse")
+    group.add_argument("--ntds", action="store", help="(local) ntds.dit file to parse")
+    group.add_argument("--username", action="store", help="(remote) Domain Admin username to connect to the target")
+    group.add_argument("--password", action="store", help="(remote) Domain Admin username to connect to the target")
+    group.add_argument("--target", action="store", help="(remote) IP address of the Domain Contoller to connect to")
     group.add_argument("--out", action="store", help="File to write user:hash to")
     group.add_argument("--no-history", action="store_false", dest="historic", default=True,
                         help="Set to disable historic password processing. Will speed up significantly.")
@@ -43,8 +46,11 @@ if __name__ == "__main__":
                         help="Output module to visualise the data: %s " % available_outputs)
     args = parser.parse_args()
 
-    if args.system and args.ntds:
-        domain, hashes = ntds.process(args.system, args.ntds, args.historic)
+    local = (args.system and args.ntds)
+    remote = (args.username and args.password and args.target)
+
+    if local or remote:
+        domain, hashes = ntds.process_local(args.system, args.ntds, args.historic) if local else ntds.process_remote(args.username, args.password, args.target, args.historic)
         ntlm_file = args.out or "{0}.hashes.ntlm".format(domain)
 
         with HashDatabase(args.database_name, domain, raise_if_table_doesnt_exist=False) as db:
@@ -80,5 +86,3 @@ if __name__ == "__main__":
             spinner.join()
     else:
         parser.print_help()
-
-

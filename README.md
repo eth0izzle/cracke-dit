@@ -1,7 +1,7 @@
 # cracke-dit
 **cracke-dit** *("Cracked It")* **makes it easier to perform regular password audits against Active Directory environments.**
 
-Ensuring your users have strong passwords throughout the organisation is still your best line of defence against common attacks. Many organisations over estimate just how secure their users' passwords are. "London123", "Winter2017", "Passw0rd" - all complex passwords, according to the default Group Policy rules.
+Ensuring your users have strong passwords throughout the organisation is still your best line of defence against common attacks. Many organisations over estimate just how secure their users' passwords are. "London123", "Winter2017", "Passw0rd" - all complex passwords, according to the default Group Policy rules, and probably your users.
 
 By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures. See [General Tips](#general-tips).
 
@@ -12,36 +12,49 @@ Python 2.7+ and pip are required. Then just:
 1. `git clone https://github.com/eth0izzle/cracke-dit.git`
 2. *(optional)* Create a virtualenv with `pip install virtualenv && virtualenv .virtualenv && source .virtualenv/bin/activate`
 2. `pip install -r requirements.txt`
-3. `python cracked-dit.py --help` (and see [Usage](#usage))
+3. `python cracke-dit.py --help` (and see [Usage](#usage))
 
 ## Usage
-### 1. Extracting the database
-The first step in your password cracking adventure is to extract a copy of the Active Directory database, ntds.dit, which contains the password hashes. I like to involve and get as much buy-in as possible from the Admins so I will ask them very nicely to extract the files for me. However if you have domain credentials you can do it yourself:
+### 1a. Extracting the database
+The first step in your password cracking adventure is to extract a copy of the Active Directory database, ntds.dit, which contains the password hashes. Depending on your persuasion you have a few options:
 
+#### 1. Remote extraction with cracke-dit *(faster)*
+1. `python cracke-dit.py --username administrator --password passw0rd --target 192.168.1.1`
+
+#### 2. Remote extraction with metasploit
+1. Run module `auxiliary/admin/smb/psexec_ntdsgrab` and fill in the required options.
+2. Follow 1b to extract the hashes from ntds.dit.
+
+#### 3. Nicely ask a Sys Admin
+1. Follow 1b to extract the hashes from ntds.dit.
+
+#### 4.Local extraction
 1. On a Domain Controller open up an elevated command prompt.
 2. Run `ntdsutil "ac i ntds" "ifm" "create full c:\temp" q q`.
 3. **Securely** extract `c:\temp\Active Directory\ntds.dit` and `c:\temp\registry\SYSTEM` to your system with cracke-dit.
-
-Or remotely via metasploit. Run the module `auxiliary/admin/smb/psexec_ntdsgrab` and fill in the required options. This requires SMB access via the C$ share.
+4. Follow 1b to extract the hashes from ntds.dit.
 
 (if you just want to have a play, you can use the sample files in `./samples`)
 
-### 2. Extracting the hashes
+### 1b. Extracting the hashes
+
+*(not required if you remotely extracted with cracke-dit)*
+
 All password hashes are protected with 3 layers of encryption. Thankfully everything we need to decrypt is within the SYSTEM hive. The next step is to extract the hashes and usernames in to a separate file for cracking:
 
-1. Run `python cracked-it.py --system SYSTEM --ntds ntds.dit` (optionally with `--no-history` flag if you don't care about historic passwords)
+1. Run `python cracke-dit.py --system SYSTEM --ntds ntds.dit` (optionally with `--no-history` flag if you don't care about historic passwords)
 2. Once complete, your username:hash file will be at `<domain>.hashes.ntlm` - delicious.
 
 (if you have a powerful GPU use oclhashcat)
 
-### 3. Cracking the hashes
+### 2. Cracking the hashes
 cracke-dit doesn't actually *crack* passwords, you will need to use your favourite password cracker for that. cracke-dit just needs a `.pot` file (hash:password) for processing. I'm partial to hashcat so:
 
 1. `hashcat -m 1000 --potfile-path <domain>.pot --username <domain>.hashes.ntlm /usr/share/Wordlists/rockyou.txt` which will be pretty quick.
 2. Do a second pass with [H0bRules](https://github.com/praetorian-inc/Hob0Rules): `hashcat -m 1000 --potfile-path <domain>.pot --username <domain>.hashes.ntlm /usr/share/Wordlists/rockyou.txt -r hob064.rule`
 3. ...
 
-### 4. Processing the passwords
+### 3. Processing the passwords
 Now we have cracked a bunch of hashes, let's load them in to cracke-dit!
 
 1. `python cracke-dit.py --pot <domain>.pot --domain <domain>`. Optionally pass in `--only-users` or `--only-enabled` - hopefully they are self explanatory.
@@ -57,7 +70,7 @@ Using the ntds.dit and SYSTEM in `./samples` we get the following output:
 2. Password scores are based on [Dropbox's zxcvbn](https://github.com/dropbox/zxcvbn):
 
     | Score         | Description           | Guesses  |
-    |------:|:----------------------| -----:|
+    |------:|:----------------------| :-----|
     | 0     | **Too guessable**: risky password. | < 10^3 |
     | 1     | **Very guessable**: protection from throttled online attacks. | < 10^6 |
     | 2     | **Somewhat guessable**: protection from unthrottled online attacks. | < 10^8 |
@@ -90,4 +103,9 @@ Check out the [issue tracker](https://github.com/eth0izzle/cracke-dit/issues) an
 
 ## License
 
-MIT. See [LICENSE]
+cracke-dit is under MIT. See [LICENSE](LICENSE)
+Impacket is under a slightly modified version of the Apache Software License. See [LICENSE](impacket/LICENSE)
+
+## Credits
+
+Huge thanks [CoreSecurity's Impacket](https://github.com/CoreSecurity/impacket)!
