@@ -16,11 +16,13 @@ Python 2.7+ and pip are required. Then just:
 
 ## Usage
 ### 1. Extracting the database
-The first step in your password cracking adventure is to extract a copy of the Active Directory database, ntds.dit, which contains the password hashes:
+The first step in your password cracking adventure is to extract a copy of the Active Directory database, ntds.dit, which contains the password hashes. I like to involve and get as much buy-in as possible from the Admins so I will ask them very nicely to extract the files for me. However if you have domain credentials you can do it yourself:
 
 1. On a Domain Controller open up an elevated command prompt.
 2. Run `ntdsutil "ac i ntds" "ifm" "create full c:\temp" q q`.
 3. **Securely** extract `c:\temp\Active Directory\ntds.dit` and `c:\temp\registry\SYSTEM` to your system with cracke-dit.
+
+Or remotely via metasploit. Run the module `auxiliary/admin/smb/psexec_ntdsgrab` and fill in the required options. This requires SMB access via the C$ share.
 
 (if you just want to have a play, you can use the sample files in `./samples`)
 
@@ -29,6 +31,8 @@ All password hashes are protected with 3 layers of encryption. Thankfully everyt
 
 1. Run `python cracked-it.py --system SYSTEM --ntds ntds.dit` (optionally with `--no-history` flag if you don't care about historic passwords)
 2. Once complete, your username:hash file will be at `<domain>.hashes.ntlm` - delicious.
+
+(if you have a powerful GPU use oclhashcat)
 
 ### 3. Cracking the hashes
 cracke-dit doesn't actually *crack* passwords, you will need to use your favourite password cracker for that. cracke-dit just needs a `.pot` file (hash:password) for processing. I'm partial to hashcat so:
