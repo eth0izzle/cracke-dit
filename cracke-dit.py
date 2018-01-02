@@ -75,14 +75,19 @@ if __name__ == "__main__":
 
         with HashDatabase(args.database_name, args.domain,
                           raise_if_table_doesnt_exist=True, only_enabled=args.only_enabled, only_users=args.only_users) as db:
-            with open(args.pot, "r") as pot:
-                for line in pot:
-                    line = line.rstrip("\r\n").replace("$NT$", "")  # $NT$ for John
-                    hash, password = line.split(":")
-                    db.update_hash_password(hash, password)
+            try:
+                with open(args.pot, "r") as pot:
+                    for line in pot:
+                        line = line.rstrip("\r\n").replace("$NT$", "")  # $NT$ for John
+                        hash, password = line.split(":")
+                        db.update_hash_password(hash, password)
 
-            outputs.get_output_by_name(args.output).run(db, args)
-            stopper.set()
-            spinner.join()
+                outputs.get_output_by_name(args.output).run(db, args)
+            except IOError as e:
+                print("Failed to read '{}'. Make sure the file exists and is readable.".format(args.pot))
+            finally:
+                stopper.set()
+                spinner.join()
+
     else:
         parser.print_help()

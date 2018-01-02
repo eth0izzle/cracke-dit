@@ -3,7 +3,7 @@
 
 Ensuring your users have strong passwords throughout the organisation is still your best line of defence against common attacks. Many organisations over estimate just how secure their users' passwords are. "London123", "Winter2017", "Passw0rd" - all complex passwords, according to the default Group Policy rules, and probably your users.
 
-By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures. See [General Tips](#general-tips).
+By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures.
 
 ## Installation
 
@@ -63,11 +63,13 @@ Using the ntds.dit and SYSTEM in `./samples` we get the following output:
 
 ![Demo](samples/demo.gif)
 
-## cracke-dit Tips
+cracke-dit currently has two output modules: `stdout` (above, the default) and `email`, which you can set with the `--output` flag. You could very easily cron the ntds.dit retrieval, hashcat and email outputs to automatically get a password report every month.
 
-1. Users highlighted in **green** are enabled, **red** are disabled, and **gray** is an historic password.
+### 4. Interpreting results
 
-2. Password scores are based on [Dropbox's zxcvbn](https://github.com/dropbox/zxcvbn):
+* Users highlighted in **green** are enabled, **red** are disabled, and **gray** is an historic password.
+
+* Password scores are based on [Dropbox's zxcvbn](https://github.com/dropbox/zxcvbn):
 
     | Score         | Description           | Guesses  |
     |------:|:----------------------| :-----|
@@ -77,9 +79,7 @@ Using the ntds.dit and SYSTEM in `./samples` we get the following output:
     | 3     | **Safely unguessable**: moderate protection from offline slow-hash scenario. | < 10^10 |
     | 4     | **Very unguessable**: strong protection from offline slow-hash scenario. | => 10^10 |
 
-3. Extract the hashes with `--no-history` to speed up the process.
-
-## General Tips
+## Tips
 
 1. Introduce internal training on what a secure password is,  why they're important and embed it in to your induction programme.
 

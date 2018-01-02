@@ -111,4 +111,4 @@ def __print_graph(labels, data):
             for _ in range(blocks):
                 sys.stdout.write("▇")
 
-        print("  {}".format(value))
+        print("{}".format(value))
