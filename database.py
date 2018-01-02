@@ -81,7 +81,7 @@ class HashDatabase:
 
         return sorted(list(
             (password, count, zxcvbn.password_strength(password)["score"], self.__get_users_with_password(password))
-                for password, count in passwords)[:limit], key=sortby, reverse=reverse)
+                for password, count in passwords), key=sortby, reverse=reverse)[:limit]
 
     def get_passwords_where(self, where):
         return self.table.search((Query().password.exists()) & (Query().password.test(where)))
