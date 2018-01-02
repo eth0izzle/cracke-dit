@@ -18,17 +18,17 @@ Python 2.7+ and pip are required. Then just:
 ### 1a. Extracting the database
 The first step in your password cracking adventure is to extract a copy of the Active Directory database, ntds.dit, which contains the password hashes. Depending on your persuasion you have a few options:
 
-#### 1. Remote extraction with cracke-dit *(faster)*
+#### a. Remote extraction with cracke-dit *(faster)*
 1. `python cracke-dit.py --username administrator --password passw0rd --target 192.168.1.1`
 
-#### 2. Remote extraction with metasploit
+#### b. Remote extraction with metasploit
 1. Run module `auxiliary/admin/smb/psexec_ntdsgrab` and fill in the required options.
 2. Follow 1b to extract the hashes from ntds.dit.
 
-#### 3. Nicely ask a Sys Admin
+#### c. Nicely ask a Sys Admin
 1. Follow 1b to extract the hashes from ntds.dit.
 
-#### 4.Local extraction
+#### d. Local extraction
 1. On a Domain Controller open up an elevated command prompt.
 2. Run `ntdsutil "ac i ntds" "ifm" "create full c:\temp" q q`.
 3. **Securely** extract `c:\temp\Active Directory\ntds.dit` and `c:\temp\registry\SYSTEM` to your system with cracke-dit.
@@ -79,7 +79,7 @@ cracke-dit currently has two output modules: `stdout` (above, the default) and `
     | 3     | **Safely unguessable**: moderate protection from offline slow-hash scenario. | < 10^10 |
     | 4     | **Very unguessable**: strong protection from offline slow-hash scenario. | => 10^10 |
 
-## Tips
+## Tips for organisations
 
 1. Introduce internal training on what a secure password is,  why they're important and embed it in to your induction programme.
 
