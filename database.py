@@ -68,6 +68,12 @@ class HashDatabase:
         return cracked, blank, historic
 
     @property
+    def all_passwords(self):
+        results = self.table.search((Query().password.exists()) & (Query().password != "") & self.only_users & self.only_enabled)
+
+        return [(result["password"], zxcvbn.password_strength(result["password"])["score"]) for result in results]
+
+    @property
     def password_char_stats(self):
         alphanum = string.ascii_letters + string.digits
         only_alpha = self.table.count(Query().password.test(lambda p: p != "" and all(c in alphanum for c in p)))
@@ -81,19 +87,10 @@ class HashDatabase:
 
         return sorted(list(
             (password, count, zxcvbn.password_strength(password)["score"], self.__get_users_with_password(password))
-                for password, count in passwords)[:limit], key=sortby, reverse=reverse)
+                for password, count in passwords), key=sortby, reverse=reverse)[:limit]
 
     def get_passwords_where(self, where):
         return self.table.search((Query().password.exists()) & (Query().password.test(where)))
-
-    def __get_users_with_password(self, password):
-        users = self.table.search(
-            (Query().password.exists()) & (Query().username.exists()) & (Query().password == password)
-            & self.only_users & self.only_enabled
-        )
-        shuffle(users)
-
-        return users
 
     def update_hash_password(self, hash, password):
         self.table.update({"ntlmhash": hash.strip(), "password": password.strip(), "updated": datetime.now()}, Query().ntlmhash == hash)
@@ -104,3 +101,12 @@ class HashDatabase:
         eh_val = historic if not enabled and historic else enabled
 
         self.table.insert({"username": u, "ntlmhash": ntlmhash.strip(), eh_key: eh_val, "created": datetime.now()})
+
+    def __get_users_with_password(self, password):
+        users = self.table.search(
+            (Query().password.exists()) & (Query().username.exists()) & (Query().password == password)
+            & self.only_users & self.only_enabled
+        )
+        shuffle(users)
+
+        return users

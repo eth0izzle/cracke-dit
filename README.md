@@ -63,8 +63,6 @@ Using the ntds.dit and SYSTEM in `./samples` we get the following output:
 
 ![Demo](samples/demo.gif)
 
-cracke-dit currently has two output modules: `stdout` (above, the default) and `email`, which you can set with the `--output` flag. You could very easily cron the ntds.dit retrieval, hashcat and email outputs to automatically get a password report every month.
-
 ### 4. Interpreting results
 
 * Users highlighted in **green** are enabled, **red** are disabled, and **gray** is an historic password.
@@ -78,6 +76,22 @@ cracke-dit currently has two output modules: `stdout` (above, the default) and `
     | 2     | **Somewhat guessable**: protection from unthrottled online attacks. | < 10^8 |
     | 3     | **Safely unguessable**: moderate protection from offline slow-hash scenario. | < 10^10 |
     | 4     | **Very unguessable**: strong protection from offline slow-hash scenario. | => 10^10 |
+
+## Output modules
+
+Results can be processed by different output modules via the `--output` argument.
+
+### Console (`stdout`)
+The default output module and shown in the demo above. Shows interesting stats, top 10 passwords by reuse, the top 5 worst passwords and if any passwords use month or day names.
+
+### E-mail (`email`)
+E-mails the top 25 passwords (by reuse).
+
+### Password Cloud (`password_cloud`)
+Spits out a wordcloud of all passwords, colored by password score.
+
+![Demo](samples/password_cloud.png)
+
 
 ## Tips for organisations
 

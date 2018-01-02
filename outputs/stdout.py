@@ -39,12 +39,12 @@ def run(db, args):
     fmt_lambda = lambda password, count, score, users: [password, len(password), count, __coloured_score(score), __process_users(users)]
 
     take_top = 10
-    top_passwords = db.get_top_passwords(sortby=lambda (password, count, score, users): count, reverse=True, limit=take_top)
+    top_passwords = db.get_top_passwords(sortby=lambda (password, count, score, users): (count, score, len(password)), reverse=True, limit=take_top)
     __print_table(title="Top {} Passwords (by use)".format(take_top), headers=headers, align=[">", "<", "<", "<", ""],
                   values=top_passwords, format=fmt_lambda)
 
     take_top = 5
-    bad_pass = db.get_top_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password)), reverse=False, limit=take_top)
+    bad_pass = db.get_top_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password), len(users)), reverse=False, limit=take_top)
     __print_table(title="Top {} Worst Passwords".format(take_top), headers=headers,
                   align=[">", "<", "<", "<", ""], values=bad_pass, format=fmt_lambda)
 
@@ -111,4 +111,4 @@ def __print_graph(labels, data):
             for _ in range(blocks):
                 sys.stdout.write("▇")
 
-        print("{}".format(value))
+        print("   {}".format(value))

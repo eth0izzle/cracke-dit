@@ -1,2 +1,2 @@
-def run(db, domain):
+def run(db, args):
     print("TODO")
