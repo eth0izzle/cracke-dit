@@ -1,13 +1,14 @@
 # coding: utf-8
 
 from __future__ import division
-import sys, calendar
+import sys, calendar, itertools
 from collections import OrderedDict
 
 import zxcvbn
 
 END = "\033[0m"
 WHITE = "\033[99m"
+UNDERLINE = "\033[4m"
 GREEN = "\033[92m"
 YELLOW = "\033[96m"
 ORANGE = "\033[93m"
@@ -31,8 +32,10 @@ def run(db, args):
     print("Passwords cracked:\t{}/{}\t{:.2f}%".format(cracked, total, (cracked / total) * 100))
     print("Historic passwords:\t{}\t{:.2f}%".format(historic, (historic / total) * 100))
 
-    only_alpha, with_special = db.password_char_stats
+    only_alpha, with_special, only_digits = db.password_composition_stats
+    print(UNDERLINE + "\nPassword composition" + END)
     print("Only alphanumeric:\t{}\t{:.2f}%".format(only_alpha, (only_alpha / total) * 100))
+    print("Only digits:\t{}\t{:.2f}%".format(only_digits, (only_digits / total) * 100))
     print("With 'special char':\t{}\t{:.2f}%".format(with_special, (with_special / total) * 100))
 
     headers = ["Password", "Length", "Count", "Score", "Users"]
@@ -40,21 +43,28 @@ def run(db, args):
 
     take_top = 10
     top_passwords = db.get_top_passwords(sortby=lambda (password, count, score, users): (count, score, len(password)), reverse=True, limit=take_top)
-    __print_table(title="Top {} Passwords (by use)".format(take_top), headers=headers, align=[">", "<", "<", "<", ""],
+    __print_table(title="Top {} Passwords (by use, score)".format(take_top), headers=headers, align=[">", "<", "<", "<", ""],
                   values=top_passwords, format=fmt_lambda)
 
     take_top = 5
     bad_pass = db.get_top_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password), len(users)), reverse=False, limit=take_top)
-    __print_table(title="Top {} Worst Passwords".format(take_top), headers=headers,
+    __print_table(title="Top {} Worst Passwords (by score, length)".format(take_top), headers=headers,
                   align=[">", "<", "<", "<", ""], values=bad_pass, format=fmt_lambda)
 
-    __graph_passwords_containing("Months", db, OrderedDict([(calendar.month_name[m], 0) for m in range(1, 13)]))
-    __graph_passwords_containing("Days", db, OrderedDict([(calendar.day_name[d], 0) for d in range(0, 7)]))
+    passwords = db.get_passwords_where(lambda password: password != "")
+    __graph_passwords_containing("Passwords containing months", passwords, OrderedDict([(calendar.month_name[m], 0) for m in range(1, 13)]))
+    __graph_passwords_containing("Passwords containing days", passwords, OrderedDict([(calendar.day_name[d], 0) for d in range(0, 7)]))
+
+    print(UNDERLINE + "\nPassword length distribution" + END)
+    grpd_passwords = ((p, len(list(count))) for p, count in itertools.groupby(sorted(passwords, key=lambda r: len(r["password"])), lambda r: len(r["password"])))
+    keys, vals = map(list, zip(*grpd_passwords))
+    vals_percents = [" ({:.2f}%)".format((v / total) * 100) for v in vals]
+    __print_graph(keys, vals, vals_percents)
 
 
 def __print_table(title, headers, align, values, format):
     fmt = "".join(["{:" + align[headers.index(x)] + str(int(len(x)*1.75)) + "}\t".expandtabs() for x in headers])
-    print("\n{}\n{}\n".format(title, "="*len(title)))
+    print(UNDERLINE + "\n{}".format(title) + END)
     print(fmt.format(*headers))
     print(fmt.format(*["-"*len(header) for header in headers]))
 
@@ -83,18 +93,18 @@ def __process_users(users):
     return ", ".join(usernames)
 
 
-def __graph_passwords_containing(title, db, list):
-    for row in db.get_passwords_where(lambda password: password != ""):
+def __graph_passwords_containing(title, passwords, list):
+    for row in passwords:
         for key in list:
             if key.lower() in row["password"].lower():
                 list[key] += 1
 
     if any(val for val in list.values()):
-        print("\nPasswords Containing {0}\n==========================\n".format(title))
+        print((UNDERLINE + "\n{0}" + END).format(title))
         __print_graph(list.keys(), list.values())
 
 
-def __print_graph(labels, data):
+def __print_graph(labels, data, data_labels=None):
     width = 50
     val_min = min(data)
     val_max = max(data)
@@ -102,6 +112,7 @@ def __print_graph(labels, data):
 
     for i in range(len(labels)):
         value = data[i]
+        data_label = data_labels[i] if data_labels is not None else ""
         blocks = int(normalised[i])
 
         sys.stdout.write("{:>15}: ".format(labels[i]))
@@ -111,4 +122,4 @@ def __print_graph(labels, data):
             for _ in range(blocks):
                 sys.stdout.write("▇")
 
-        print("   {}".format(value))
+        print("   {}{}".format(value, data_label))

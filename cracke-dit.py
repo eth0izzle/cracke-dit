@@ -73,8 +73,7 @@ if __name__ == "__main__":
         spinner = Thread(target=update, args=(stopper,))
         spinner.start()
 
-        with HashDatabase(args.database_name, args.domain,
-                          raise_if_table_doesnt_exist=True, only_enabled=args.only_enabled, only_users=args.only_users) as db:
+        with HashDatabase(args.database_name, args.domain, raise_if_table_doesnt_exist=True, only_enabled=args.only_enabled, only_users=args.only_users) as db:
             try:
                 with open(args.pot, "r") as pot:
                     for line in pot:

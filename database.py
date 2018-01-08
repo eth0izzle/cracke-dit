@@ -7,8 +7,6 @@ from tinydb import TinyDB, Query
 from tinydb.middlewares import CachingMiddleware
 from tinydb_serialization import Serializer, SerializationMiddleware
 
-BLANK_NTLMHASH = "31d6cfe0d16ae931b73c59d7e0c089c0"
-
 
 class DateTimeSerializer(Serializer):
     OBJ_CLASS = datetime
@@ -21,6 +19,8 @@ class DateTimeSerializer(Serializer):
 
 
 class HashDatabase:
+    BLANK_NTLMHASH = "31d6cfe0d16ae931b73c59d7e0c089c0"
+
     def __init__(self, db_name, domain, raise_if_table_doesnt_exist=True, only_enabled=False, only_users=False):
         self.db = None
         self.table = None
@@ -62,7 +62,7 @@ class HashDatabase:
     @property
     def password_stats(self):
         cracked = self.table.count((Query().password.exists()) & (Query().password != "") & self.only_users & self.only_enabled)
-        blank = self.table.count(Query().ntlmhash == BLANK_NTLMHASH)
+        blank = self.table.count(Query().ntlmhash == HashDatabase.BLANK_NTLMHASH)
         historic = self.table.count((Query().historic.exists()) & self.only_enabled & self.only_users)
 
         return cracked, blank, historic
@@ -74,12 +74,13 @@ class HashDatabase:
         return [(result["password"], zxcvbn.password_strength(result["password"])["score"]) for result in results]
 
     @property
-    def password_char_stats(self):
+    def password_composition_stats(self):
         alphanum = string.ascii_letters + string.digits
         only_alpha = self.table.count(Query().password.test(lambda p: p != "" and all(c in alphanum for c in p)))
         with_special = self.table.count(Query().password.test(lambda p: p != "" and any(c not in alphanum for c in p)))
+        only_digits = self.table.count(Query().password.test(lambda p: p != "" and all(c in string.digits for c in p)))
 
-        return only_alpha, with_special
+        return only_alpha, with_special, only_digits
 
     def get_top_passwords(self, sortby, reverse=True, limit=10):
         results = sorted(self.table.search((Query().password.exists()) & self.only_users & self.only_enabled), key=lambda r: r["password"])
