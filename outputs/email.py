@@ -11,6 +11,10 @@ EMAIL_TO = ""
 EMAIL_SUBJECT = "Password Report For {}"
 
 
+def add_args(parser):
+    pass
+
+
 def run(db, args):
     html = []
 

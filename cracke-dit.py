@@ -1,9 +1,8 @@
-import sys, os, argparse, itertools, time
+import sys, glob, os, argparse, itertools, time
 from threading import Thread, Event
 
 import ntds_parser as ntds, outputs
-from database import HashDatabase
-
+from database import HashDatabase, DomainDoesntExist
 
 BANNER = """\033[91m
                         __                  ___ __ 
@@ -17,10 +16,12 @@ BANNER = """\033[91m
 if __name__ == "__main__":
     print(BANNER)
     available_outputs = ", ".join(outputs.discover_outputs().keys())
-    parser = argparse.ArgumentParser(add_help=True, description="crack-dit makes it easier to perform password "
+
+    parser = argparse.ArgumentParser(add_help=False, description="crack-dit makes it easier to perform password "
                                                                 "audits against Windows-based corporate environments.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--database-name", default="db.json", action="store", help="Name of the database file to store")
+    parser.add_argument("--help", action="store_true", help="show this help message and exit", required=False)
 
     group = parser.add_argument_group("1. Cracking", "cracke-dit can take your raw ntds.dit and SYSTEM hive "
                                                               "and turn them in to a user:hash file for cracking "
@@ -44,7 +45,9 @@ if __name__ == "__main__":
                         help="Only show user accounts, i.e. ignore computer accounts.")
     group.add_argument("--output", action="store", default="stdout",
                         help="Output module to visualise the data: %s " % available_outputs)
-    args = parser.parse_args()
+
+    args, unknown_args = parser.parse_known_args()
+    args = outputs.get_output_by_name(args.output).add_args(parser)
 
     local = (args.system and args.ntds)
     remote = (args.username and args.password and args.target)
@@ -61,7 +64,7 @@ if __name__ == "__main__":
 
         print("Found {} hashes for '{}', available at {}. Run them through your favourite password cracker and re-run cracke-dit with --pot - see README for tips!".format(len(hashes), domain, ntlm_file))
     elif args.pot and args.domain:
-        def update(stopper):
+        def __update(stopper):
             spinner = itertools.cycle(['-', '/', '|', '\\'])
 
             while not stopper.is_set():
@@ -69,24 +72,31 @@ if __name__ == "__main__":
                 sys.stdout.flush()
                 time.sleep(0.2)
 
+        def __opendb(domain):
+            with HashDatabase(args.database_name, domain, raise_if_table_doesnt_exist=True, only_enabled=args.only_enabled, only_users=args.only_users) as db:
+                try:
+                    with open(args.pot, "r") as pot:
+                        for line in pot:
+                            line = line.rstrip("\r\n").replace("$NT$", "")  # $NT$ for John
+                            hash, password = line.split(":")
+                            db.update_hash_password(hash, password)
+
+                    outputs.get_output_by_name(args.output).run(db, args)
+                except IOError:
+                    print("Failed to read '{}'. Make sure the file exists and is readable.".format(args.pot))
+                    print("Did you mean: {}?".format(", ".join(glob.glob("*.pot"))))
+
         stopper = Event()
-        spinner = Thread(target=update, args=(stopper,))
+        spinner = Thread(target=__update, args=(stopper,))
         spinner.start()
 
-        with HashDatabase(args.database_name, args.domain, raise_if_table_doesnt_exist=True, only_enabled=args.only_enabled, only_users=args.only_users) as db:
-            try:
-                with open(args.pot, "r") as pot:
-                    for line in pot:
-                        line = line.rstrip("\r\n").replace("$NT$", "")  # $NT$ for John
-                        hash, password = line.split(":")
-                        db.update_hash_password(hash, password)
-
-                outputs.get_output_by_name(args.output).run(db, args)
-            except IOError as e:
-                print("Failed to read '{}'. Make sure the file exists and is readable.".format(args.pot))
-            finally:
-                stopper.set()
-                spinner.join()
-
+        try:
+            __opendb(args.domain)
+        except DomainDoesntExist as e:
+            print(e.message)
+            print("Did you mean: {}?".format(", ".join(e.tables[1:])))
+        finally:
+            stopper.set()
+            spinner.join()
     else:
         parser.print_help()

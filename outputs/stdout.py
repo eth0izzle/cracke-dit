@@ -16,6 +16,14 @@ RED = "\033[91m"
 DIM = "\033[90m"
 
 
+def add_args(parser):
+    group = parser.add_argument_group("stdout module options")
+    group.add_argument('--limit', default=10, type=int, help="Limit each section to")
+    args, unknown_args = parser.parse_known_args()
+
+    return args
+
+
 def run(db, args):
     total, local_users, domain_users, computers = db.counts
 
@@ -41,14 +49,12 @@ def run(db, args):
     headers = ["Password", "Length", "Count", "Score", "Users"]
     fmt_lambda = lambda password, count, score, users: [password, len(password), count, __coloured_score(score), __process_users(users)]
 
-    take_top = 10
-    top_passwords = db.get_top_passwords(sortby=lambda (password, count, score, users): (count, score, len(password)), reverse=True, limit=take_top)
-    __print_table(title="Top {} Passwords (by use, score)".format(take_top), headers=headers, align=[">", "<", "<", "<", ""],
+    top_passwords = db.get_top_passwords(sortby=lambda (password, count, score, users): (count, score, len(password)), reverse=True, limit=args.limit)
+    __print_table(title="Top {} Passwords (by use, score)".format(args.limit), headers=headers, align=[">", "<", "<", "<", ""],
                   values=top_passwords, format=fmt_lambda)
 
-    take_top = 5
-    bad_pass = db.get_top_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password), len(users)), reverse=False, limit=take_top)
-    __print_table(title="Top {} Worst Passwords (by score, length)".format(take_top), headers=headers,
+    bad_pass = db.get_top_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password), len(users)), reverse=False, limit=args.limit)
+    __print_table(title="Top {} Worst Passwords (by score, length)".format(args.limit), headers=headers,
                   align=[">", "<", "<", "<", ""], values=bad_pass, format=fmt_lambda)
 
     passwords = db.get_passwords_where(lambda password: password != "")
@@ -61,6 +67,12 @@ def run(db, args):
     vals_percents = [" ({:.2f}%)".format((v / total) * 100) for v in vals]
     __print_graph(keys, vals, vals_percents)
 
+    if historic > 0:
+        __print_table(title="Users historic passwords (top {})".format((args.limit)),
+                      headers=["     User     ", "# Passwords", "Passwords"],
+                      align=[">", "<", ""], values=db.get_historic_passwords(args.limit),
+                      format=lambda user, passwords: [user, len(passwords), __process_passwords(passwords)])
+
 
 def __print_table(title, headers, align, values, format):
     fmt = "".join(["{:" + align[headers.index(x)] + str(int(len(x)*1.75)) + "}\t".expandtabs() for x in headers])
@@ -72,25 +84,33 @@ def __print_table(title, headers, align, values, format):
         print(fmt.format(*format(*item)))
 
 
-def __coloured_score(score):
+def __coloured_score(score, text=None):
     colormap = {0: RED, 1: ORANGE, 2: YELLOW, 3: GREEN, 4: WHITE}
-    return "{}{:<8}{}".format(colormap[score], score, END)
+    return "{}{:<8}{}".format(colormap[score], text or score, END)
 
 
 def __process_users(users):
-    usernames = []
+    return ", ".join(__process_user(user) for user in users)
 
-    for user in users:
-        uname = user["username"]
 
-        if "historic" in user:
-            usernames.append("{}{}{}".format(DIM, uname, END))
-        elif "enabled" in user and not user["enabled"]:
-            usernames.append("{}{}{}".format(RED, uname, END))
-        else:
-            usernames.append("{}{}{}".format(GREEN, uname, END))
+def __process_user(user):
+    uname = user["username"]
 
-    return ", ".join(usernames)
+    if "historic" in user:
+        return "{}{}{}".format(DIM, uname, END)
+    elif "enabled" in user and not user["enabled"]:
+        return "{}{}{}".format(RED, uname, END)
+    else:
+        return "{}{}{}".format(GREEN, uname, END)
+
+
+def __process_passwords(passwords):
+    out = []
+
+    for p, users in passwords:
+        out.append(__coloured_score(zxcvbn.password_strength(p)["score"], p))
+
+    return ", ".join(out)
 
 
 def __graph_passwords_containing(title, passwords, list):

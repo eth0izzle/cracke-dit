@@ -18,6 +18,12 @@ class DateTimeSerializer(Serializer):
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
 
 
+class DomainDoesntExist(ValueError):
+    def __init__(self, message, tables):
+        self.message = message
+        self.tables = tables
+
+
 class HashDatabase:
     BLANK_NTLMHASH = "31d6cfe0d16ae931b73c59d7e0c089c0"
 
@@ -32,8 +38,9 @@ class HashDatabase:
 
         self.db = TinyDB(db_name, storage=CachingMiddleware(serialization))
 
-        if raise_if_table_doesnt_exist and domain not in self.db.tables():
-            raise ValueError("Hashes for domain '{}' do not exist in database.".format(domain))
+        tables = list(self.db.tables())
+        if raise_if_table_doesnt_exist and domain not in tables:
+            raise DomainDoesntExist("Hashes for domain '{}' do not exist in database.".format(domain), tables)
 
         self.table = self.db.table(domain)
 
@@ -82,16 +89,23 @@ class HashDatabase:
 
         return only_alpha, with_special, only_digits
 
+    def get_historic_passwords(self, limit=10):
+        results = sorted(self.table.search((Query().password.exists()) & (Query().password != "") & (Query().historic.exists()) & (Query().username.exists()) & self.only_enabled), key=lambda r: r["username"])
+        passwords = ((user, len(list(count))) for user, count in itertools.groupby(results, lambda r: r["username"]))
+
+        return sorted(list((user, self.__get_passwords_for_user(user))
+                           for user, count in passwords), key=lambda (user, passwords): len(passwords), reverse=True)[:limit]
+
     def get_top_passwords(self, sortby, reverse=True, limit=10):
         results = sorted(self.table.search((Query().password.exists()) & self.only_users & self.only_enabled), key=lambda r: r["password"])
         passwords = ((password, len(list(count))) for password, count in itertools.groupby(results, lambda r: r["password"]))
 
         return sorted(list(
             (password, count, zxcvbn.password_strength(password)["score"], self.__get_users_with_password(password))
-                for password, count in passwords)[:limit], key=sortby, reverse=reverse)
+                for password, count in passwords), key=sortby, reverse=reverse)[:limit]
 
     def get_passwords_where(self, where):
-        return self.table.search((Query().password.exists()) & (Query().password.test(where)))
+        return self.table.search((Query().password.exists()) & (Query().password.test(where)) & self.only_users & self.only_enabled)
 
     def update_hash_password(self, hash, password):
         self.table.update({"ntlmhash": hash.strip(), "password": password.strip(), "updated": datetime.now()}, Query().ntlmhash == hash)
@@ -111,3 +125,9 @@ class HashDatabase:
         shuffle(users)
 
         return users
+
+    def __get_passwords_for_user(self, user):
+        passwords = sorted(self.table.search((Query().password.exists()) & (Query().password != "") & (Query().username.exists()) & (Query().username == user) & self.only_enabled), key=lambda r: r["password"])
+        grouped_passwords = ((password, users) for password, users in itertools.groupby(passwords, lambda r: r["password"]))
+
+        return list(grouped_passwords)

@@ -4,6 +4,10 @@ from wordcloud import WordCloud
 import matplotlib as mpl
 
 
+def add_args(parser):
+    pass
+
+
 def run(db, args):
     if platform.system() == "Darwin":
         mpl.use("TkAgg")
