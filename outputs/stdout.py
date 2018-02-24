@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from __future__ import division
-import sys, calendar, itertools
+import sys, calendar, itertools, hashlib, urllib2
 from collections import OrderedDict
 
 import zxcvbn
@@ -14,11 +14,12 @@ YELLOW = "\033[96m"
 ORANGE = "\033[93m"
 RED = "\033[91m"
 DIM = "\033[90m"
-
+HIBP_CHECK_API = "https://api.pwnedpasswords.com/range/{}"
 
 def add_args(parser):
     group = parser.add_argument_group("stdout module options")
     group.add_argument('--limit', default=10, type=int, help="Limit each section to")
+    group.add_argument('--no-hibp', action="store_true", default=False, help="Checks to see if password appears in Have I Been Pwned (password is never transmitted to the server)")
     args, unknown_args = parser.parse_known_args()
 
     return args
@@ -46,16 +47,17 @@ def run(db, args):
     print("Only digits:\t{}\t{:.2f}%".format(only_digits, (only_digits / total) * 100))
     print("With 'special char':\t{}\t{:.2f}%".format(with_special, (with_special / total) * 100))
 
-    headers = ["Password", "Length", "Count", "Score", "Users"]
-    fmt_lambda = lambda password, count, score, users: [password, len(password), count, __coloured_score(score), __process_users(users)]
+    headers = ["Password", "Length", "Count", "Score", "Pwned #", "Users"]
+    fmt_lambda = lambda password, count, score, users: [password, len(password), count, __coloured_score(score), __get_usage(password) if not args.no_hibp else '', __process_users(users)]
+    default_align = [">", "<", "<", "<", "<", ""]
 
-    top_passwords = db.get_top_passwords(sortby=lambda (password, count, score, users): (count, score, len(password)), reverse=True, limit=args.limit)
-    __print_table(title="Top {} Passwords (by use, score)".format(args.limit), headers=headers, align=[">", "<", "<", "<", ""],
+    top_passwords = db.get_passwords(sortby=lambda (password, count, score, users): (count, score, len(password)), reverse=True, limit=args.limit)
+    __print_table(title="Top {} Passwords (by use, score)".format(args.limit), headers=headers, align=default_align,
                   values=top_passwords, format=fmt_lambda)
 
-    bad_pass = db.get_top_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password), len(users)), reverse=False, limit=args.limit)
+    bad_pass = db.get_passwords(sortby=lambda (password, count, score, users): (zxcvbn.password_strength(password)["score"], len(password), len(users)), reverse=False, limit=args.limit)
     __print_table(title="Top {} Worst Passwords (by score, length)".format(args.limit), headers=headers,
-                  align=[">", "<", "<", "<", ""], values=bad_pass, format=fmt_lambda)
+                  align=default_align, values=bad_pass, format=fmt_lambda)
 
     passwords = db.get_passwords_where(lambda password: password != "")
     __graph_passwords_containing("Passwords containing months", passwords, OrderedDict([(calendar.month_name[m], 0) for m in range(1, 13)]))
@@ -87,6 +89,19 @@ def __print_table(title, headers, align, values, format):
 def __coloured_score(score, text=None):
     colormap = {0: RED, 1: ORANGE, 2: YELLOW, 3: GREEN, 4: WHITE}
     return "{}{:<8}{}".format(colormap[score], text or score, END)
+
+
+def __get_usage(password):
+    try:
+        sha1_password = hashlib.sha1(password).hexdigest().upper()
+        request = urllib2.Request(HIBP_CHECK_API.format(sha1_password[:5]), headers={"User-Agent": "cracke-dit"})
+        response = urllib2.urlopen(request).read()
+        lines = dict(map(lambda line: line.split(":"), response.split("\r\n")))
+        passwords = {password: int(count) for password, count in lines.iteritems()}
+
+        return "{:,}".format(passwords.get(sha1_password[5:]) or 0)
+    except:
+        return "-"
 
 
 def __process_users(users):

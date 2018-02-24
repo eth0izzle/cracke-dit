@@ -1617,6 +1617,7 @@ class NTDSHashes:
         'objectSid': '1.2.840.113556.1.4.146',
         'pwdLastSet': '1.2.840.113556.1.4.96',
         'userAccountControl':'1.2.840.113556.1.4.8',
+        'lastLogonTimestamp': '1.2.840.113556.1.4.1696',
     }
 
     KERBEROS_TYPE = {
@@ -1685,7 +1686,7 @@ class NTDSHashes:
         )
 
     def __init__(self, ntdsFile, bootKey, isRemote=False, history=False, noLMHash=True, remoteOps=None,
-                 useVSSMethod=False, justNTLM=False, pwdLastSet=False, resumeSession=None, outputFileName=None,
+                 useVSSMethod=False, justNTLM=False, pwdLastSet=False, lastLogon=False, resumeSession=None, outputFileName=None,
                  justUser=None, printUserStatus=False,
                  perSecretCallback = lambda secretType, secret : _print_helper(secret),
                  resumeSessionMgr=ResumeSessionMgrInFile):
@@ -1696,6 +1697,7 @@ class NTDSHashes:
         self.__useVSSMethod = useVSSMethod
         self.__remoteOps = remoteOps
         self.__pwdLastSet = pwdLastSet
+        self.__lastLogon = lastLogon
         self.__printUserStatus = printUserStatus
         if self.__NTDS is not None:
             self.__ESEDB = ESENT_DB(ntdsFile, isRemote = isRemote)
@@ -1965,11 +1967,18 @@ class NTDSHashes:
             else:
                 pwdLastSet = 'N/A'
 
+            if record[self.NAME_TO_INTERNAL['lastLogonTimestamp']] is not None:
+                lastLogon = self.__fileTimeToDateTime(record[self.NAME_TO_INTERNAL['lastLogonTimestamp']])
+            else:
+                lastLogon = 'N/A'
+
             answer = "%s:%s:%s:%s:::" % (userName, rid, hexlify(LMHash), hexlify(NTHash))
             if self.__pwdLastSet is True:
                 answer = "%s (pwdLastSet=%s)" % (answer, pwdLastSet)
             if self.__printUserStatus is True:
                 answer = "%s (status=%s)" % (answer, userAccountStatus)
+            if self.__lastLogon is True:
+                answer = "%s (lastLogon=%s)" % (answer, lastLogon)
 
             self.__perSecretCallback(NTDSHashes.SECRET_TYPE.NTDS, answer)
 
@@ -2017,6 +2026,8 @@ class NTDSHashes:
             replyVersion = 'V%d' %record['pdwOutVersion']
             LOG.debug('Decrypting hash for user: %s' % record['pmsgOut'][replyVersion]['pNC']['StringName'][:-1])
             domain = None
+            lastLogon = 'never'
+
             if self.__history:
                 LMHistory = []
                 NTHistory = []
@@ -2086,6 +2097,13 @@ class NTDSHashes:
                             userAccountStatus = 'Enabled'
                     else:
                         userAccountStatus = 'N/A'
+                elif attId == LOOKUP_TABLE['lastLogonTimestamp']:
+                    if attr['AttrVal']['valCount'] > 0:
+                        try:
+                            lastLogon = self.__fileTimeToDateTime(unpack('<Q', ''.join(attr['AttrVal']['pAVal'][0]['pVal']))[0])
+                        except Exception as e:
+                            LOG.error('Cannot get lastLogon for %s' % record['pmsgOut'][replyVersion]['pNC']['StringName'][:-1])
+                            lastLogon = 'N/A'
 
                 if self.__history:
                     if attId == LOOKUP_TABLE['lmPwdHistory']:
@@ -2115,6 +2133,9 @@ class NTDSHashes:
                 answer = "%s (pwdLastSet=%s)" % (answer, pwdLastSet)
             if self.__printUserStatus is True:
                 answer = "%s (status=%s)" % (answer, userAccountStatus)
+            if self.__lastLogon is True:
+                answer = "%s (lastLogon=%s)" % (answer, lastLogon)
+
             self.__perSecretCallback(NTDSHashes.SECRET_TYPE.NTDS, answer)
 
             if outputFile is not None:

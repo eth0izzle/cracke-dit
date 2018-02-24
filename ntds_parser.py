@@ -22,7 +22,7 @@ def process_remote(username, password, target, historic):
         spinner = Thread(target=__update, args=(stopper, hashes))
         spinner.start()
         NTDSHashes(None, None, isRemote=True, remoteOps=ops, noLMHash=True, useVSSMethod=False,
-                   justNTLM=True, printUserStatus=True, history=historic,
+                   justNTLM=True, printUserStatus=True, history=historic, lastLogon=True, pwdLastSet=True,
                    perSecretCallback=lambda type, secret: hashes.append(__process_hash(secret))).dump()
         stopper.set()
         spinner.join()
@@ -54,7 +54,7 @@ def process_local(system, ntds, historic):
     spinner = Thread(target=__update, args=(stopper, hashes))
     spinner.start()
     NTDSHashes(ntds, bootKey, noLMHash=ops.checkNoLMHashPolicy(), useVSSMethod=True, justNTLM=True,
-               printUserStatus=True, history=historic,
+               printUserStatus=True, history=historic, lastLogon=True, pwdLastSet=True,
                perSecretCallback=lambda type, secret: hashes.append(__process_hash(secret))).dump()
 
     stopper.set()
@@ -64,16 +64,15 @@ def process_local(system, ntds, historic):
 
 
 def __process_hash(hash):
-    user, rid, lmhash, nthash, enabled = re.findall("(?P<user>.*):(?P<rid>.*):(?P<lmhash>.*):(?P<ntlmhash>.*):::(?: \(status=(?P<enabled>.*)\))?", hash)[0]
+    user, rid, lmhash, nthash, pwdLastSet, enabled, lastLogon = re.findall("(?P<user>.*):(?P<rid>.*):(?P<lmhash>.*):(?P<ntlmhash>.*):::(?:(?: \(pwdLastSet=(?P<pwdLastSet>.*)\))(?: \(status=(?P<enabled>.*)\))(?: \(lastLogon=(?P<lastLogon>.*)\)))?", hash)[0]
     history_match = re.match("(?P<user>.*)(_history\d+$)", user)
 
     if history_match:
         user = history_match.group(1)
 
-        return {"username": user, "ntlmhash": nthash, "password": None, "historic": True}
+        return {"username": user.strip(), "ntlmhash": nthash, "historic": True}
     else:
-        return {"username": user, "ntlmhash": nthash, "password": None, "enabled": True if enabled == "Enabled" else False}
-
+        return {"username": user.strip(), "ntlmhash": nthash, "enabled": True if enabled == "Enabled" else False, "passwordLastSet": pwdLastSet, "lastLogon": lastLogon}
 
 def __get_domain(hashes):
     return [hash["username"].split("\\")[0] for hash in hashes if "\\" in hash["username"]][0]

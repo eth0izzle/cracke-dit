@@ -53,16 +53,16 @@ if __name__ == "__main__":
     remote = (args.username and args.password and args.target)
 
     if local or remote:
-        domain, hashes = ntds.process_local(args.system, args.ntds, args.historic) if local else ntds.process_remote(args.username, args.password, args.target, args.historic)
+        domain, records = ntds.process_local(args.system, args.ntds, args.historic) if local else ntds.process_remote(args.username, args.password, args.target, args.historic)
         ntlm_file = args.out or "{0}.hashes.ntlm".format(domain)
 
         with HashDatabase(args.database_name, domain, raise_if_table_doesnt_exist=False) as db:
             with open(ntlm_file, "w+") as out:
-                for hash in hashes:
-                    out.write("%s:%s%s" % (hash["username"], hash["ntlmhash"], os.linesep))
-                    db.insert(hash["username"], hash["ntlmhash"], hash["enabled"] if "enabled" in hash else None, hash["historic"] if "historic" in hash else None)
+                for record in records:
+                    out.write("%s:%s%s" % (record["username"], record["ntlmhash"], os.linesep))
+                    db.insert(record)
 
-        print("Found {} hashes for '{}', available at {}. Run them through your favourite password cracker and re-run cracke-dit with --pot - see README for tips!".format(len(hashes), domain, ntlm_file))
+        print("Found {} hashes for '{}', available at {}. Run them through your favourite password cracker and re-run cracke-dit with --pot - see README for tips!".format(len(records), domain, ntlm_file))
     elif args.pot and args.domain:
         def __update(stopper):
             spinner = itertools.cycle(['-', '/', '|', '\\'])
@@ -78,8 +78,10 @@ if __name__ == "__main__":
                     with open(args.pot, "r") as pot:
                         for line in pot:
                             line = line.rstrip("\r\n").replace("$NT$", "")  # $NT$ for John
-                            hash, password = line.split(":")
-                            db.update_hash_password(hash, password)
+                            hash, password = map(str.strip, line.split(":"))
+
+                            if password:
+                                db.update_hash_password(hash, password)
 
                     outputs.get_output_by_name(args.output).run(db, args)
                 except IOError:

@@ -96,7 +96,7 @@ class HashDatabase:
         return sorted(list((user, self.__get_passwords_for_user(user))
                            for user, count in passwords), key=lambda (user, passwords): len(passwords), reverse=True)[:limit]
 
-    def get_top_passwords(self, sortby, reverse=True, limit=10):
+    def get_passwords(self, sortby, reverse=True, limit=10):
         results = sorted(self.table.search((Query().password.exists()) & self.only_users & self.only_enabled), key=lambda r: r["password"])
         passwords = ((password, len(list(count))) for password, count in itertools.groupby(results, lambda r: r["password"]))
 
@@ -108,14 +108,13 @@ class HashDatabase:
         return self.table.search((Query().password.exists()) & (Query().password.test(where)) & self.only_users & self.only_enabled)
 
     def update_hash_password(self, hash, password):
-        self.table.update({"ntlmhash": hash.strip(), "password": password.strip(), "updated": datetime.now()}, Query().ntlmhash == hash)
+        self.table.update({"ntlmhash": hash, "password": password, "updated": datetime.now()}, Query().ntlmhash == hash)
 
-    def insert(self, username, ntlmhash, enabled, historic):
-        u = username.strip()
-        eh_key = "historic" if not enabled and historic else "enabled"
-        eh_val = historic if not enabled and historic else enabled
+    def insert(self, record):
+        record["created"] = datetime.now()
 
-        self.table.insert({"username": u, "ntlmhash": ntlmhash.strip(), eh_key: eh_val, "created": datetime.now()})
+        self.table.insert(record)
+
 
     def __get_users_with_password(self, password):
         users = self.table.search(
