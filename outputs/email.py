@@ -12,7 +12,7 @@ EMAIL_SUBJECT = "Password Report For {}"
 
 
 def add_args(parser):
-    pass
+    return parser.parse_args()
 
 
 def run(db, args):
