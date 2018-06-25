@@ -5,8 +5,6 @@ Ensuring your users have strong passwords throughout the organisation is still .
 
 By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures.
 
-**Fully automated password audits with [Passlo](https://www.passlo.com/).**
-
 ## Installation
 
 Python 2.7+ and pip are required. Then just:
