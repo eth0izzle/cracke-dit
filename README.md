@@ -1,7 +1,7 @@
 # cracke-dit
 **cracke-dit** *("Cracked It")* **makes it easier to perform regular password audits against Active Directory environments.**
 
-Ensuring your users have strong passwords throughout the organisation is still . Many organisations over estimate just how secure their users' passwords are. "London123", "Winter2017", "Passw0rd" - all complex passwords, according to the default Group Policy rules, and probably your users.
+Ensuring your users have strong passwords throughout the organisation is still your best line of defence against common attacks. Many organisations over estimate just how secure their users' passwords are. "London123", "Winter2017", "Passw0rd" - all complex passwords, according to the default Group Policy rules, and probably your users.
 
 By performing regular audits, you can identify users with weak passwords and take action inline with your policies and procedures.
 
