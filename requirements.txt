@@ -1,7 +1,7 @@
 asn1crypto==0.24.0
 backports.functools-lru-cache==1.4
 cffi==1.11.2
-cryptography==2.1.4
+cryptography==3.2
 cycler==0.10.0
 enum34==1.1.6
 idna==2.6
