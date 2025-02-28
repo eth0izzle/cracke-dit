@@ -1,3 +1,5 @@
+# 🚨 cracke-dit is no longer maintained. If you need support or consultation for your passing cracking endeavours, drop me an e-mail paul@darkport.co.uk 🚨
+
 # cracke-dit
 **cracke-dit** *("Cracked It")* **makes it easier to perform regular password audits against Active Directory environments.**
 
